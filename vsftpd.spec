@@ -2,7 +2,7 @@
 
 Name: vsftpd
 Version: 2.2.2
-Release: 13%{?dist}.1
+Release: 14%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -65,6 +65,7 @@ Patch26: vsftpd-2.2.2-logging.patch
 Patch27: vsftpd-2.2.2-privop_pasv_listen.patch
 Patch28: vsftpd-2.2.2-connect_to.patch
 Patch29: vsftpd-2.2.2-mrate.patch
+Patch30: vsftpd-2.2.2-wnohang.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -105,6 +106,7 @@ cp %{SOURCE1} .
 %patch27 -p1 -b .privop_pasv_listen
 %patch28 -p1 -b .connect_to
 %patch29 -p1 -b .mrate
+%patch30 -p1 -b .wnohang
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -169,6 +171,9 @@ fi
 
 
 %changelog
+* Wed Mar 04 2015 Martin Osvald <mosvald@rehat.com> - 2.2.2-14
+- Resolves: #1092877 - The vsftpd hangs in a SIGCHLD handler when the pam_exec.so is used in pam.d configuration
+
 * Mon Sep 29 2014 Jiri Skala <jskala@rehat.com> - 2.2.2-13.el6_6.1
 - Resolves: #1147517 - vsftpd local_max_rate option doesn't work as expected
 
