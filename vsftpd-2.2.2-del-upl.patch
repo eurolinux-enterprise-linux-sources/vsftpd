@@ -1,28 +1,113 @@
+From d04be35193b30f94b56a956061d017f3103886d0 Mon Sep 17 00:00:00 2001
+From: Martin Sehnoutka <msehnout@redhat.com>
+Date: Tue, 17 Jan 2017 17:59:27 +0100
+Subject: [PATCH] Bug 894340 and 1411415
+
+The vsftpd doesn't remove failed upload when the delete_failed_uploads
+is enabled and the network cable is unplagged.
+vsftpd-2.2.2-21.el6 not responding with '421 Timeout.' like previous
+vsftpd versions in RHEL 6
+---
+ ftpcmdio.c  | 31 ++++++++++++++++++++++++++-----
+ ftpcodes.h  |  3 ++-
+ ftpdataio.c | 35 ++++++++++++++++++++++++++++-------
+ main.c      |  4 ++--
+ netstr.c    |  4 ++--
+ postlogin.c | 43 ++++++++++++++++++++++++++++++++++---------
+ session.h   |  3 +++
+ sysutil.c   | 10 ++++++++++
+ sysutil.h   |  1 +
+ 9 files changed, 108 insertions(+), 26 deletions(-)
+
 diff --git a/ftpcmdio.c b/ftpcmdio.c
-index 08a2548..7e83d85 100644
+index 08a2548..475e6e8 100644
 --- a/ftpcmdio.c
 +++ b/ftpcmdio.c
-@@ -41,7 +41,8 @@ static void
+@@ -21,7 +21,7 @@
+ #include "readwrite.h"
+ 
+ /* Internal functions */
+-static void control_getline(struct mystr* p_str, struct vsf_session* p_sess);
++static int control_getline(struct mystr* p_str, struct vsf_session* p_sess);
+ static void ftp_write_text_common(struct vsf_session* p_sess, int status,
+                                   const char* p_text, int noblock, char sep);
+ static void ftp_write_str_common(struct vsf_session* p_sess, int status,
+@@ -41,7 +41,9 @@ static void
  handle_alarm_timeout(void* p_private)
  {
    struct vsf_session* p_sess = (struct vsf_session*) p_private;
 -  vsf_cmdio_write_exit(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
 +  p_sess->idle_timeout = 1;
++  vsf_sysutil_activate_noblock(VSFTP_COMMAND_FD);
 +  vsf_sysutil_shutdown_read_failok(VSFTP_COMMAND_FD);
  }
  
  void
-@@ -175,6 +176,10 @@ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
+@@ -81,6 +83,7 @@ vsf_cmdio_write_exit(struct vsf_session* p_sess, int status, const char* p_text)
+    * connections, where the SSL control channel slave is in a separate
+    * process.
+    */
++  vsf_sysutil_activate_noblock(VSFTP_COMMAND_FD);
+   vsf_sysutil_shutdown_read_failok(VSFTP_COMMAND_FD);
+   ftp_write_text_common(p_sess, status, p_text, 1, ' ');
+   vsf_sysutil_shutdown_failok(VSFTP_COMMAND_FD);
+@@ -168,13 +171,26 @@ void
+ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
+                           struct mystr* p_arg_str, int set_alarm)
+ {
++  int ret;
+   /* Prepare an alarm to timeout the session.. */
+   if (set_alarm)
+   {
+     vsf_cmdio_set_alarm(p_sess);
    }
    /* Blocks */
-   control_getline(p_cmd_str, p_sess);
+-  control_getline(p_cmd_str, p_sess);
++  ret = control_getline(p_cmd_str, p_sess);
 +  if (p_sess->idle_timeout)
 +  {
 +    vsf_cmdio_write_exit(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
 +  }
++  if (ret == 0)
++  {
++    /* Remote end hung up without a polite QUIT. The shutdown is to make
++     * sure buggy clients don't ever see an OOPS message.
++     */
++    vsf_sysutil_shutdown_failok(VSFTP_COMMAND_FD);
++    vsf_sysutil_exit(1);
++  }
    /* View a single space as a command of " ", which although a useless command,
     * permits the caller to distinguish input of "" from " ".
     */
+@@ -207,7 +223,7 @@ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
+   }
+ }
+ 
+-static void
++static int
+ control_getline(struct mystr* p_str, struct vsf_session* p_sess)
+ {
+   int ret;
+@@ -216,7 +232,11 @@ control_getline(struct mystr* p_str, struct vsf_session* p_sess)
+     vsf_secbuf_alloc(&p_sess->p_control_line_buf, VSFTP_MAX_COMMAND_LINE);
+   }
+   ret = ftp_getline(p_sess, p_str, p_sess->p_control_line_buf);
+-  if (ret < 0)
++  if (ret == 0)
++  {
++    return ret;
++  }
++  else if (ret < 0)
+   {
+     vsf_cmdio_write_exit(p_sess, FTP_BADCMD, "Input line too long.");
+   }
+@@ -231,5 +251,6 @@ control_getline(struct mystr* p_str, struct vsf_session* p_sess)
+       --len;
+     }
+   }
++  return 1;
+ }
+ 
 diff --git a/ftpcodes.h b/ftpcodes.h
 index 93290c0..995788a 100644
 --- a/ftpcodes.h
@@ -145,6 +230,35 @@ index 2aa18c0..c44e373 100644
      /* Session state */
      0,
      /* Userids */
+diff --git a/netstr.c b/netstr.c
+index 2e4930b..6541dcd 100644
+--- a/netstr.c
++++ b/netstr.c
+@@ -29,6 +29,7 @@ str_netfd_alloc(struct vsf_session* p_sess,
+   unsigned int i;
+   char* p_readpos = p_readbuf;
+   unsigned int left = maxlen;
++  str_empty(p_str);
+   while (1)
+   {
+     if (p_readpos + left != p_readbuf + maxlen)
+@@ -38,7 +39,6 @@ str_netfd_alloc(struct vsf_session* p_sess,
+     /* Did we hit the max? */
+     if (left == 0)
+     {
+-      str_empty(p_str);
+       return -1;
+     }
+     retval = (*p_peekfunc)(p_sess, p_readpos, left);
+@@ -48,7 +48,7 @@ str_netfd_alloc(struct vsf_session* p_sess,
+     }
+     else if (retval == 0)
+     {
+-      die("vsf_sysutil_recv_peek: no data");
++      return 0;
+     }
+     bytes_read = (unsigned int) retval;
+     /* Search for the terminator */
 diff --git a/postlogin.c b/postlogin.c
 index 92ed76f..e1f080f 100644
 --- a/postlogin.c
@@ -289,3 +403,6 @@ index b951d0e..92fb7a9 100644
  void vsf_sysutil_set_iptos_throughput(int fd);
  void vsf_sysutil_activate_reuseaddr(int fd);
  void vsf_sysutil_set_nodelay(int fd);
+-- 
+2.9.3
+

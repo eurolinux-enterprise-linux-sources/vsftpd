@@ -2,7 +2,7 @@
 
 Name: vsftpd
 Version: 2.2.2
-Release: 21%{?dist}
+Release: 24%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -193,6 +193,16 @@ fi
 
 
 %changelog
+* Tue Jan 17 2017 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-24
+- Related: #1411415, activate non-blocking calls over command fd
+
+* Fri Jan 13 2017 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-23
+- Resolves: #1411415, vsftpd not responding with '421 Timeout.' like previous
+  vsftpd
+
+* Wed Oct 12 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-22
+- Change default TLS settings, Resolves: #1350724
+
 * Fri Mar 18 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-21
 - Fixed man pages bug #1103754
 
