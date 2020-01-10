@@ -64,11 +64,32 @@ start() {
         return $RETVAL
 }
 
+kill_rest_children() {
+    # all vsftpd processes their parent is init
+    for chld in `pgrep -P 1 '^vsftpd$'`; do
+        if [ -n $chld ]; then
+            puid=`ps -p $chld -o uid= | sed s/^\ *//`
+            # process UID isn't root - children to kill
+            if [ "$puid" != "0" ]; then
+                pgrp=`ps -p $chld -o pgrp= | sed s/^\ *//`
+                if [ "$pgrp" = "$chld" ]; then
+                    # chld is group to kill
+                    kill -9 -$chld
+                else
+                    # chld to kill
+                    kill -9 $chld
+                fi
+            fi
+        fi
+    done
+}
+
 stop() {
         # Stop daemons.
         echo -n $"Shutting down $prog: "
         killproc $prog
         RETVAL=$?
+        kill_rest_children
         echo
         [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
         return $RETVAL

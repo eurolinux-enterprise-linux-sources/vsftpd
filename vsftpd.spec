@@ -2,7 +2,7 @@
 
 Name: vsftpd
 Version: 2.2.2
-Release: 14%{?dist}.1
+Release: 21%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -66,7 +66,17 @@ Patch27: vsftpd-2.2.2-privop_pasv_listen.patch
 Patch28: vsftpd-2.2.2-connect_to.patch
 Patch29: vsftpd-2.2.2-mrate.patch
 Patch30: vsftpd-2.2.2-wnohang.patch
-Patch31: vsftpd-2.2.2-nfs-fail.patch
+Patch31: vsftpd-2.2.2-tz.patch
+Patch32: vsftpd-2.2.2-del-upl.patch
+Patch33: vsftpd-2.2.2-dh.patch
+Patch34: vsftpd-2.2.2-ecdh.patch
+Patch35: vsftpd-2.2.2-badip.patch
+Patch36: vsftpd-2.2.2-tls-ver.patch
+Patch37: vsftpd-2.2.2-syslog.patch
+Patch38: vsftpd-2.2.2-blank-chars-overflow.patch
+Patch39: vsftpd-2.2.2-nfs-fail.patch
+Patch40: vsftpd-2.0.5-fix_qm.patch
+Patch41: vsftpd-2.2.2-man-pages.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -108,7 +118,17 @@ cp %{SOURCE1} .
 %patch28 -p1 -b .connect_to
 %patch29 -p1 -b .mrate
 %patch30 -p1 -b .wnohang
-%patch31 -p1 -b .nfs-fail
+%patch31 -p1 -b .tz
+%patch32 -p1 -b .del_upl
+%patch33 -p1 -b .dh
+%patch34 -p1 -b .ecdh
+%patch35 -p1 -b .badip
+%patch36 -p1 -b .tls_ver
+%patch37 -p1 -b .syslog
+%patch38 -p1 -b .blank-char-overflow
+%patch39 -p1 -b .nfs-fail
+%patch40 -p1 -b .fix_qm
+%patch41 -p1 -b .man_pages
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -135,7 +155,7 @@ install -m 600 %{SOURCE3} $RPM_BUILD_ROOT%{_sysconfdir}/vsftpd/ftpusers
 install -m 600 %{SOURCE4} $RPM_BUILD_ROOT%{_sysconfdir}/vsftpd/user_list
 install -m 755 %{SOURCE5} $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/vsftpd
 install -m 744 %{SOURCE6} $RPM_BUILD_ROOT%{_sysconfdir}/vsftpd/vsftpd_conf_migrate.sh
-                            
+                  
 mkdir -p $RPM_BUILD_ROOT/%{_var}/ftp/pub
 
 
@@ -173,8 +193,35 @@ fi
 
 
 %changelog
-* Thu Mar 10 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-14.1
-- Handle errors when calling close() (#1299343)
+* Fri Mar 18 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-21
+- Fixed man pages bug #1103754
+
+* Tue Mar 15 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-20
+- Removed forgotten debug log message (#894340)
+
+* Tue Mar 15 2016 Pavel Šimerda <psimerda@redhat.com> - 2.2.2-19
+- Resolves: #1315957 - Wildcard ? does not work correctly in vsftpd
+
+* Mon Feb 29 2016 Tomas Hozza <thozza@redhat.com> - 2.2.2-18
+- Handle errors when calling close() (#1269369)
+
+* Wed Feb 24 2016 Tomas Hozza <thozza@redhat.com> - 2.2.2-17
+- Fix segfault with only whitespace as configuration option (#1222386)
+
+* Wed Feb 24 2016 Tomas Hozza <thozza@redhat.com> - 2.2.2-16
+- Fix logging when syslog is used (#1175071)
+
+* Wed Mar 04 2015 Martin Osvald <mosvald@rehat.com> - 2.2.2-15
+- Resolves: #816486 - Timestamp problem
+- Resolves: #849993 - deny_file, hide_file
+- Resolves: #863061 - "service vsftpd stop" not stopping all vsftpd processes
+- Resolves: #894340 - The vsftpd doesn't remove failed upload when the delete_failed_uploads
+  is enabled and the network cable is unplagged
+- Resolves: #1058695 - [RFE] vsftpd does not support DHE cipher suites
+- Resolves: #1058710 - [RFE] vsftpd does not support ECDHE cipher suites
+- Resolves: #1065361 - closing a non-opened file when connection fails with a message "Security: Bad IP connecting." 
+- Resolves: #1103754 - ssl_request_cert paragraph in the vsftpd.conf man page gets rendered incorrectly
+- Resolves: #1182928 - [RFE] vsftpd should permit specified TLS versions only.
 
 * Wed Mar 04 2015 Martin Osvald <mosvald@rehat.com> - 2.2.2-14
 - Resolves: #1092877 - The vsftpd hangs in a SIGCHLD handler when the pam_exec.so is used in pam.d configuration

@@ -1,0 +1,11 @@
+diff -up vsftpd-2.2.2/ftpdataio.c.badip vsftpd-2.2.2/ftpdataio.c
+--- vsftpd-2.2.2/ftpdataio.c.badip	2016-01-20 11:01:02.366729635 +0100
++++ vsftpd-2.2.2/ftpdataio.c	2016-01-20 11:01:39.767075745 +0100
+@@ -127,7 +127,6 @@ vsf_ftpdataio_get_pasv_fd(struct vsf_ses
+   else if (remote_fd == -2)
+   {
+     vsf_cmdio_write(p_sess, FTP_BADSENDCONN, "Security: Bad IP connecting.");
+-    vsf_sysutil_close(remote_fd);
+     return -1;
+   }
+   init_data_sock_params(p_sess, remote_fd);

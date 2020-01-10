@@ -1,0 +1,291 @@
+diff --git a/ftpcmdio.c b/ftpcmdio.c
+index 08a2548..7e83d85 100644
+--- a/ftpcmdio.c
++++ b/ftpcmdio.c
+@@ -41,7 +41,8 @@ static void
+ handle_alarm_timeout(void* p_private)
+ {
+   struct vsf_session* p_sess = (struct vsf_session*) p_private;
+-  vsf_cmdio_write_exit(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
++  p_sess->idle_timeout = 1;
++  vsf_sysutil_shutdown_read_failok(VSFTP_COMMAND_FD);
+ }
+ 
+ void
+@@ -175,6 +176,10 @@ vsf_cmdio_get_cmd_and_arg(struct vsf_session* p_sess, struct mystr* p_cmd_str,
+   }
+   /* Blocks */
+   control_getline(p_cmd_str, p_sess);
++  if (p_sess->idle_timeout)
++  {
++    vsf_cmdio_write_exit(p_sess, FTP_IDLE_TIMEOUT, "Timeout.");
++  }
+   /* View a single space as a command of " ", which although a useless command,
+    * permits the caller to distinguish input of "" from " ".
+    */
+diff --git a/ftpcodes.h b/ftpcodes.h
+index 93290c0..995788a 100644
+--- a/ftpcodes.h
++++ b/ftpcodes.h
+@@ -15,7 +15,8 @@
+ #define FTP_PBSZOK            200
+ #define FTP_PROTOK            200
+ #define FTP_OPTSOK            200
+-#define FTP_ALLOOK            202
++#define FTP_ALLOOK            200
++#define FTP_ALLOIGN           202
+ #define FTP_FEAT              211
+ #define FTP_STATOK            211
+ #define FTP_SIZEOK            213
+diff --git a/ftpdataio.c b/ftpdataio.c
+index 72a1edc..f00044b 100644
+--- a/ftpdataio.c
++++ b/ftpdataio.c
+@@ -61,8 +61,6 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
+   {
+     bug("no data descriptor in vsf_ftpdataio_dispose_transfer_fd");
+   }
+-  /* Reset the data connection alarm so it runs anew with the blocking close */
+-  start_data_alarm(p_sess);
+   vsf_sysutil_uninstall_io_handler();
+   if (p_sess->data_use_ssl && p_sess->ssl_slave_active)
+   {
+@@ -76,8 +74,17 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
+   }
+   else if (p_sess->p_data_ssl)
+   {
++    start_data_alarm(p_sess);
+     dispose_ret = ssl_data_close(p_sess);
+   }
++  if (!p_sess->abor_received && !p_sess->data_timeout && dispose_ret == 1)
++  {
++    /* If we didn't get a failure, linger on the close() in order to get more
++     * accurate transfer times.
++     */
++    start_data_alarm(p_sess);
++    vsf_sysutil_activate_linger(p_sess->data_fd);
++  }
+   /* This close() blocks because we set SO_LINGER */
+   retval = vsf_sysutil_close_failok(p_sess->data_fd);
+   if (vsf_sysutil_retval_is_error(retval))
+@@ -86,11 +93,15 @@ vsf_ftpdataio_dispose_transfer_fd(struct vsf_session* p_sess)
+     vsf_sysutil_deactivate_linger_failok(p_sess->data_fd);
+     (void) vsf_sysutil_close_failok(p_sess->data_fd);
+   }
++  p_sess->data_fd = -1;
+   if (tunable_data_connection_timeout > 0)
+   {
+     vsf_sysutil_clear_alarm();
+   }
+-  p_sess->data_fd = -1;
++  if (p_sess->abor_received || p_sess->data_timeout)
++  {
++    dispose_ret = 0;
++  }
+   return dispose_ret;
+ }
+ 
+@@ -189,11 +200,13 @@ handle_sigalrm(void* p_private)
+   struct vsf_session* p_sess = (struct vsf_session*) p_private;
+   if (!p_sess->data_progress)
+   {
+-    vsf_cmdio_write_exit(p_sess, FTP_DATA_TIMEOUT,
+-                         "Data timeout. Reconnect. Sorry.");
++    p_sess->data_timeout = 1;
++    vsf_sysutil_shutdown_failok(p_sess->data_fd);
++    vsf_sysutil_shutdown_read_failok(VSFTP_COMMAND_FD);
++  } else {
++    p_sess->data_progress = 0;
++    start_data_alarm(p_sess);
+   }
+-  p_sess->data_progress = 0;
+-  start_data_alarm(p_sess);
+ }
+ 
+ void
+@@ -232,6 +245,10 @@ init_data_sock_params(struct vsf_session* p_sess, int sock_fd)
+   /* Start the timeout monitor */
+   vsf_sysutil_install_io_handler(handle_io, p_sess);
+   start_data_alarm(p_sess);
++  if(tunable_delete_failed_uploads)
++  {
++    vsf_sysutil_rcvtimeo(sock_fd);
++  }
+ }
+ 
+ static void
+@@ -604,6 +621,10 @@ do_file_recv(struct vsf_session* p_sess, int file_fd, int is_ascii)
+     else if (retval == 0 && !prev_cr)
+     {
+       /* Transfer done, nifty */
++      if (tunable_delete_failed_uploads &&
++          !is_ascii && p_sess->upload_size > 0 &&
++          p_sess->upload_size != ret_struct.transferred)
++        ret_struct.retval = -2;
+       return ret_struct;
+     }
+     num_to_write = (unsigned int) retval;
+diff --git a/main.c b/main.c
+index 2aa18c0..c44e373 100644
+--- a/main.c
++++ b/main.c
+@@ -38,13 +38,13 @@ main(int argc, const char* argv[])
+   struct vsf_session the_session =
+   {
+     /* Control connection */
+-    0, 0, 0,
++    0, 0, 0, 0, 0,
+     /* Data connection */
+     -1, 0, -1, 0, 0, 0, 0, 0,
+     /* Login */
+     1, 0, INIT_MYSTR, INIT_MYSTR,
+     /* Protocol state */
+-    0, 1, INIT_MYSTR, 0, 0,
++    0, 0, 1, INIT_MYSTR, 0, 0,
+     /* Session state */
+     0,
+     /* Userids */
+diff --git a/postlogin.c b/postlogin.c
+index 92ed76f..e1f080f 100644
+--- a/postlogin.c
++++ b/postlogin.c
+@@ -344,7 +344,15 @@ process_post_login(struct vsf_session* p_sess)
+     }
+     else if (str_equal_text(&p_sess->ftp_cmd_str, "ALLO"))
+     {
+-      vsf_cmdio_write(p_sess, FTP_ALLOOK, "ALLO command ignored.");
++      if (tunable_delete_failed_uploads && !p_sess->is_ascii)
++      {
++        
++        p_sess->upload_size = (filesize_t)vsf_sysutil_atoi(str_getbuf(&p_sess->ftp_cmd_str)+5);
++        vsf_cmdio_write(p_sess, FTP_ALLOOK, "The filesize has been allocated.");
++      }
++      else {
++        vsf_cmdio_write(p_sess, FTP_ALLOIGN, "ALLO command ignored.");
++      }
+     }
+     else if (str_equal_text(&p_sess->ftp_cmd_str, "REIN"))
+     {
+@@ -435,6 +443,11 @@ process_post_login(struct vsf_session* p_sess)
+     {
+       vsf_log_do_log(p_sess, 0);
+     }
++    if (p_sess->data_timeout)
++    {
++      vsf_cmdio_write_exit(p_sess, FTP_DATA_TIMEOUT,
++                           "Data timeout. Reconnect. Sorry.");
++    }
+   }
+ }
+ 
+@@ -734,7 +747,11 @@ handle_retr(struct vsf_session* p_sess)
+   }
+   else if (trans_ret.retval == -2)
+   {
+-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
++    if (!p_sess->data_timeout)
++    {
++      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
++                      "Failure writing network stream.");
++    }
+   }
+   else
+   {
+@@ -872,18 +889,22 @@ handle_dir_common(struct vsf_session* p_sess, int full_details, int stat_cmd)
+   {
+     vsf_cmdio_write(p_sess, FTP_STATFILE_OK, "End of status");
+   }
++  else if (retval != 0)
++  {
++    if (!p_sess->data_timeout)
++    {
++      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
++                      "Failure writing network stream.");
++    }
++  }
+   else if (p_dir == 0 || !dir_allow_read)
+   {
+     vsf_cmdio_write(p_sess, FTP_TRANSFEROK,
+                     "Transfer done (but failed to open directory).");
+   }
+-  else if (retval == 0)
+-  {
+-    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "Directory send OK.");
+-  }
+   else
+   {
+-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure writing network stream.");
++    vsf_cmdio_write(p_sess, FTP_TRANSFEROK, "Directory send OK.");
+   }
+   check_abor(p_sess);
+ dir_close_out:
+@@ -1103,9 +1124,13 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
+   {
+     vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure writing to local file.");
+   }
+-  else if (trans_ret.retval == -2 || p_sess->abor_received)
++  else if (trans_ret.retval == -2)
+   {
+-    vsf_cmdio_write(p_sess, FTP_BADSENDNET, "Failure reading network stream.");
++    if (!p_sess->data_timeout)
++    {
++      vsf_cmdio_write(p_sess, FTP_BADSENDNET,
++                      "Failure reading network stream.");
++    }
+   }
+   else
+   {
+diff --git a/session.h b/session.h
+index 4adf336..f9bd4c4 100644
+--- a/session.h
++++ b/session.h
+@@ -21,6 +21,8 @@ struct vsf_session
+   struct vsf_sysutil_sockaddr* p_local_addr;
+   struct vsf_sysutil_sockaddr* p_remote_addr;
+   char* p_control_line_buf;
++  int idle_timeout;
++  int data_timeout;
+ 
+   /* Details of the data connection */
+   int pasv_listen_fd;
+@@ -39,6 +41,7 @@ struct vsf_session
+   struct mystr anon_pass_str;
+ 
+   /* Details of the FTP protocol state */
++  filesize_t upload_size;
+   filesize_t restart_pos;
+   int is_ascii;
+   struct mystr rnfr_filename_str;
+diff --git a/sysutil.c b/sysutil.c
+index 02d9a6c..01a726d 100644
+--- a/sysutil.c
++++ b/sysutil.c
+@@ -682,6 +682,16 @@ vsf_sysutil_activate_keepalive(int fd)
+ }
+ 
+ void
++vsf_sysutil_rcvtimeo(int fd)
++{
++  struct timeval tv;
++
++  tv.tv_sec = tunable_data_connection_timeout;
++  tv.tv_usec = 0;
++  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
++}
++
++void
+ vsf_sysutil_activate_reuseaddr(int fd)
+ {
+   int reuseaddr = 1;
+diff --git a/sysutil.h b/sysutil.h
+index b951d0e..92fb7a9 100644
+--- a/sysutil.h
++++ b/sysutil.h
+@@ -266,6 +266,7 @@ void vsf_sysutil_dns_resolve(struct vsf_sysutil_sockaddr** p_sockptr,
+ /* Option setting on sockets */
+ void vsf_sysutil_v6only(int fd);
+ void vsf_sysutil_activate_keepalive(int fd);
++void vsf_sysutil_rcvtimeo(int fd);
+ void vsf_sysutil_set_iptos_throughput(int fd);
+ void vsf_sysutil_activate_reuseaddr(int fd);
+ void vsf_sysutil_set_nodelay(int fd);

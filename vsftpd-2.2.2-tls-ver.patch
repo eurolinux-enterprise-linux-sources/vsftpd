@@ -1,0 +1,89 @@
+diff -up vsftpd-2.2.2/parseconf.c.tls-ver vsftpd-2.2.2/parseconf.c
+--- vsftpd-2.2.2/parseconf.c.tls-ver	2016-01-20 11:24:02.316122739 +0100
++++ vsftpd-2.2.2/parseconf.c	2016-01-20 11:24:46.113534633 +0100
+@@ -85,6 +85,8 @@ parseconf_bool_array[] =
+   { "ssl_sslv2", &tunable_sslv2 },
+   { "ssl_sslv3", &tunable_sslv3 },
+   { "ssl_tlsv1", &tunable_tlsv1 },
++  { "ssl_tlsv1_1", &tunable_tlsv1_1 },
++  { "ssl_tlsv1_2", &tunable_tlsv1_2 },
+   { "tilde_user_enable", &tunable_tilde_user_enable },
+   { "force_anon_logins_ssl", &tunable_force_anon_logins_ssl },
+   { "force_anon_data_ssl", &tunable_force_anon_data_ssl },
+diff -up vsftpd-2.2.2/ssl.c.tls-ver vsftpd-2.2.2/ssl.c
+--- vsftpd-2.2.2/ssl.c.tls-ver	2016-01-20 11:25:10.332762402 +0100
++++ vsftpd-2.2.2/ssl.c	2016-01-20 11:25:45.150089841 +0100
+@@ -129,6 +129,14 @@ ssl_init(struct vsf_session* p_sess)
+     {
+       options |= SSL_OP_NO_TLSv1;
+     }
++    if (!tunable_tlsv1_1)
++    {
++      options |= SSL_OP_NO_TLSv1_1;
++    }
++    if (!tunable_tlsv1_2)
++    {
++      options |= SSL_OP_NO_TLSv1_2;
++    }
+     SSL_CTX_set_options(p_ctx, options);
+     if (tunable_rsa_cert_file)
+     {
+diff -up vsftpd-2.2.2/tunables.c.tls-ver vsftpd-2.2.2/tunables.c
+--- vsftpd-2.2.2/tunables.c.tls-ver	2016-01-20 11:26:13.500356464 +0100
++++ vsftpd-2.2.2/tunables.c	2016-01-20 11:36:00.045937579 +0100
+@@ -66,6 +66,8 @@ int tunable_force_local_data_ssl;
+ int tunable_sslv2;
+ int tunable_sslv3;
+ int tunable_tlsv1;
++int tunable_tlsv1_1;
++int tunable_tlsv1_2;
+ int tunable_tilde_user_enable;
+ int tunable_force_anon_logins_ssl;
+ int tunable_force_anon_data_ssl;
+@@ -206,6 +208,8 @@ tunables_load_defaults()
+   tunable_sslv2 = 0;
+   tunable_sslv3 = 0;
+   tunable_tlsv1 = 1;
++  tunable_tlsv1_1 = 0;
++  tunable_tlsv1_2 = 0;
+   tunable_tilde_user_enable = 0;
+   tunable_force_anon_logins_ssl = 0;
+   tunable_force_anon_data_ssl = 0;
+diff -up vsftpd-2.2.2/tunables.h.tls-ver vsftpd-2.2.2/tunables.h
+--- vsftpd-2.2.2/tunables.h.tls-ver	2016-01-20 11:28:53.292859230 +0100
++++ vsftpd-2.2.2/tunables.h	2016-01-20 11:29:25.451161662 +0100
+@@ -67,6 +67,8 @@ extern int tunable_force_local_data_ssl;
+ extern int tunable_sslv2;                     /* Allow SSLv2 */
+ extern int tunable_sslv3;                     /* Allow SSLv3 */
+ extern int tunable_tlsv1;                     /* Allow TLSv1 */
++extern int tunable_tlsv1_1;                   /* Allow TLSv1.1 */
++extern int tunable_tlsv1_2;                   /* Allow TLSv1.2 */
+ extern int tunable_tilde_user_enable;         /* Support e.g. ~chris */
+ extern int tunable_force_anon_logins_ssl;     /* Require anon logins use SSL */
+ extern int tunable_force_anon_data_ssl;       /* Require anon data uses SSL */
+diff -up vsftpd-2.2.2/vsftpd.conf.5.tls-ver vsftpd-2.2.2/vsftpd.conf.5
+--- vsftpd-2.2.2/vsftpd.conf.5.tls-ver	2016-01-20 11:29:48.571379091 +0100
++++ vsftpd-2.2.2/vsftpd.conf.5	2016-01-20 11:35:34.356690448 +0100
+@@ -508,6 +508,22 @@ TLS v1 connections are preferred.
+ 
+ Default: YES
+ .TP
++.B ssl_tlsv1_1
++Only applies if
++.BR ssl_enable
++is activated. If enabled, this option will permit TLS v1.1 protocol connections.
++TLS v1.1 connections are preferred.
++
++Default: NO
++.TP
++.B ssl_tlsv1_2
++Only applies if
++.BR ssl_enable
++is activated. If enabled, this option will permit TLS v1.2 protocol connections.
++TLS v1.2 connections are preferred.
++
++Default: NO
++.TP
+ .B strict_ssl_read_eof
+ If enabled, SSL data uploads are required to terminate via SSL, not an
+ EOF on the socket. This option is required to be sure that an attacker did

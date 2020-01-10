@@ -1,0 +1,12 @@
+diff -uNr vsftpd-2.2.2.orig/str.c vsftpd-2.2.2/str.c
+--- vsftpd-2.2.2.orig/str.c	2015-05-18 18:50:33.179969861 +0800
++++ vsftpd-2.2.2/str.c	2015-05-19 09:58:03.182915691 +0800
+@@ -98,7 +98,7 @@
+   for (h = 0; h < (int)str_getlen(p_str) && vsf_sysutil_isspace(p_trimmed[h]); h++) ;
+   for (t = str_getlen(p_str) - 1; t >= 0 && vsf_sysutil_isspace(p_trimmed[t]); t--) ;
+   newlen = t - h + 1;
+-  return newlen ? vsf_sysutil_strndup(p_trimmed+h, (unsigned int)newlen) : 0L;
++  return (newlen > 0) ? vsf_sysutil_strndup(p_trimmed+h, (unsigned int)newlen) : 0L;
+ }
+ 
+ void
