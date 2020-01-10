@@ -2,7 +2,7 @@
 
 Name: vsftpd
 Version: 2.2.2
-Release: 14%{?dist}
+Release: 14%{?dist}.1
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -66,6 +66,7 @@ Patch27: vsftpd-2.2.2-privop_pasv_listen.patch
 Patch28: vsftpd-2.2.2-connect_to.patch
 Patch29: vsftpd-2.2.2-mrate.patch
 Patch30: vsftpd-2.2.2-wnohang.patch
+Patch31: vsftpd-2.2.2-nfs-fail.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -107,6 +108,7 @@ cp %{SOURCE1} .
 %patch28 -p1 -b .connect_to
 %patch29 -p1 -b .mrate
 %patch30 -p1 -b .wnohang
+%patch31 -p1 -b .nfs-fail
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -171,6 +173,9 @@ fi
 
 
 %changelog
+* Thu Mar 10 2016 Martin Sehnoutka <msehnout@redhat.com> - 2.2.2-14.1
+- Handle errors when calling close() (#1299343)
+
 * Wed Mar 04 2015 Martin Osvald <mosvald@rehat.com> - 2.2.2-14
 - Resolves: #1092877 - The vsftpd hangs in a SIGCHLD handler when the pam_exec.so is used in pam.d configuration
 
