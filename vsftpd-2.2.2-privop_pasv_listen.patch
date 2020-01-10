@@ -1,0 +1,63 @@
+privops.c: Invalid error recovery in vsf_privop_pasv_listen()
+
+vsf_privop_pasv_listen() in privops.c is used to create the listen socket for
+a passive data connection. The listen() call on the new created socket fails
+with EADDRINUSE if a different socket is already listening on the same local
+address. This can for example happen if a different FTP client is about to
+establish its own data connection on the same port or if we accidentally hit
+a port which is used by a different service. To recover from this situation
+vsftp is just assigning a new address to the socket which fails with EINVAL
+because an address is already assigned to the socket. The correct recovery
+is to close the socket and create a new one.
+
+Signed-off-by: Ralph Wuerthner <ralph.wuerthner@de.ibm.com>
+
+---
+ privops.c |   20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+Index: vsftpd-2.2.2-patched/privops.c
+===================================================================
+--- vsftpd-2.2.2-patched.orig/privops.c
++++ vsftpd-2.2.2-patched/privops.c
+@@ -112,16 +112,6 @@ vsf_privop_pasv_listen(struct vsf_sessio
+   unsigned short min_port = 1024;
+   unsigned short max_port = 65535;
+   int is_ipv6 = vsf_sysutil_sockaddr_is_ipv6(p_sess->p_local_addr);
+-  if (is_ipv6)
+-  {
+-    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
+-  }
+-  else
+-  {
+-    p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
+-  }
+-  vsf_sysutil_activate_reuseaddr(p_sess->pasv_listen_fd);
+-
+   if (tunable_pasv_min_port > min_port && tunable_pasv_min_port <= max_port)
+   {
+     min_port = tunable_pasv_min_port;
+@@ -135,6 +125,15 @@ vsf_privop_pasv_listen(struct vsf_sessio
+   {
+     int retval;
+     double scaled_port;
++    if (is_ipv6)
++    {
++	p_sess->pasv_listen_fd = vsf_sysutil_get_ipv6_sock();
++    }
++    else
++    {
++      p_sess->pasv_listen_fd = vsf_sysutil_get_ipv4_sock();
++    }
++    vsf_sysutil_activate_reuseaddr(p_sess->pasv_listen_fd);
+     the_port = vsf_sysutil_get_random_byte();
+     the_port <<= 8;
+     the_port |= vsf_sysutil_get_random_byte();
+@@ -157,6 +156,7 @@ vsf_privop_pasv_listen(struct vsf_sessio
+     if (vsf_sysutil_get_error() == kVSFSysUtilErrADDRINUSE ||
+         vsf_sysutil_get_error() == kVSFSysUtilErrACCES)
+     {
++      vsf_sysutil_close(p_sess->pasv_listen_fd);
+       continue;
+     }
+     die("vsf_sysutil_bind / listen");

@@ -1,0 +1,44 @@
+diff -up vsftpd-2.2.2/RedHat/vsftpd.log.logging vsftpd-2.2.2/RedHat/vsftpd.log
+--- vsftpd-2.2.2/RedHat/vsftpd.log.logging	2008-12-17 17:24:03.000000000 +0100
++++ vsftpd-2.2.2/RedHat/vsftpd.log	2011-05-12 10:51:46.011697105 +0200
+@@ -3,3 +3,9 @@
+     nocompress
+     missingok
+ }
++
++/var/log/xferlog {
++    # ftpd doesn't handle SIGHUP properly
++    nocompress
++    missingok
++}
+diff -up vsftpd-2.2.2/vsftpd.conf.logging vsftpd-2.2.2/vsftpd.conf
+--- vsftpd-2.2.2/vsftpd.conf.logging	2011-05-12 10:51:45.913696069 +0200
++++ vsftpd-2.2.2/vsftpd.conf	2011-05-12 11:01:30.845046696 +0200
+@@ -34,7 +34,8 @@ local_umask=022
+ # go into a certain directory.
+ dirmessage_enable=YES
+ #
+-# Activate logging of uploads/downloads.
++# The target log file can be vsftpd_log_file or xferlog_file.
++# This depends on setting xferlog_std_format parameter
+ xferlog_enable=YES
+ #
+ # Make sure PORT transfer connections originate from port 20 (ftp-data).
+@@ -46,12 +47,12 @@ connect_from_port_20=YES
+ #chown_uploads=YES
+ #chown_username=whoever
+ #
+-# You may override where the log file goes if you like. The default is shown
+-# below.
+-#xferlog_file=/var/log/vsftpd.log
++# The name of log file when xferlog_enable=YES and xferlog_std_format=YES
++# WARNING - changing this filename affects /etc/logrotate.d/vsftpd.log
++#xferlog_file=/var/log/xferlog
+ #
+-# If you want, you can have your log file in standard ftpd xferlog format.
+-# Note that the default log file location is /var/log/xferlog in this case.
++# Switches between logging into vsftpd_log_file and xferlog_file files.
++# NO writes to vsftpd_log_file, YES to xferlog_file
+ xferlog_std_format=YES
+ #
+ # You may change the default value for timing out an idle session.

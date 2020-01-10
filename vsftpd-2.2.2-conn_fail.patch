@@ -1,0 +1,16 @@
+diff -up vsftpd-2.2.2/sysutil.c.conn_fail vsftpd-2.2.2/sysutil.c
+--- vsftpd-2.2.2/sysutil.c.conn_fail	2012-01-27 12:11:26.697293543 +0100
++++ vsftpd-2.2.2/sysutil.c	2012-01-27 12:12:15.819210305 +0100
+@@ -1821,6 +1821,12 @@ vsf_sysutil_connect_timeout(int fd, cons
+       {
+         die("getsockopt");
+       }
++
++      if (retval != 0)
++      {
++        errno = retval;
++	retval = -1;
++      }
+     }
+   }
+   if (wait_seconds > 0)

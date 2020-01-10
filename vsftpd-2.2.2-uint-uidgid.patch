@@ -1,0 +1,77 @@
+diff -up vsftpd-2.2.2/ls.c.uint-uidgid vsftpd-2.2.2/ls.c
+--- vsftpd-2.2.2/ls.c.uint-uidgid	2012-01-27 11:52:57.145334184 +0100
++++ vsftpd-2.2.2/ls.c	2012-01-27 11:52:57.146334182 +0100
+@@ -500,7 +500,7 @@ build_dir_line(struct mystr* p_str, cons
+   }
+   else
+   {
+-    int uid = vsf_sysutil_statbuf_get_uid(p_stat);
++    unsigned int uid = vsf_sysutil_statbuf_get_uid(p_stat);
+     struct vsf_sysutil_user* p_user = 0;
+     if (tunable_text_userdb_names)
+     {
+@@ -525,7 +525,7 @@ build_dir_line(struct mystr* p_str, cons
+   }
+   else
+   {
+-    int gid = vsf_sysutil_statbuf_get_gid(p_stat);
++    unsigned int gid = vsf_sysutil_statbuf_get_gid(p_stat);
+     struct vsf_sysutil_group* p_group = 0;
+     if (tunable_text_userdb_names)
+     {
+diff -up vsftpd-2.2.2/sysutil.c.uint-uidgid vsftpd-2.2.2/sysutil.c
+--- vsftpd-2.2.2/sysutil.c.uint-uidgid	2012-01-27 11:52:57.135334201 +0100
++++ vsftpd-2.2.2/sysutil.c	2012-01-27 11:52:57.147334180 +0100
+@@ -2299,13 +2299,9 @@ vsf_sysutil_dns_resolve(struct vsf_sysut
+ }
+ 
+ struct vsf_sysutil_user*
+-vsf_sysutil_getpwuid(const int uid)
++vsf_sysutil_getpwuid(const unsigned int uid)
+ {
+-  if (uid < 0)
+-  {
+-    bug("negative uid in vsf_sysutil_getpwuid");
+-  }
+-  return (struct vsf_sysutil_user*) getpwuid((unsigned int) uid);
++  return (struct vsf_sysutil_user*) getpwuid(uid);
+ }
+ 
+ struct vsf_sysutil_user*
+@@ -2343,13 +2339,9 @@ vsf_sysutil_user_getgid(const struct vsf
+ }
+ 
+ struct vsf_sysutil_group*
+-vsf_sysutil_getgrgid(const int gid)
++vsf_sysutil_getgrgid(const unsigned int gid)
+ {
+-  if (gid < 0)
+-  {
+-    die("negative gid in vsf_sysutil_getgrgid");
+-  }
+-  return (struct vsf_sysutil_group*) getgrgid((unsigned int) gid);
++  return (struct vsf_sysutil_group*) getgrgid(gid);
+ }
+ 
+ const char*
+diff -up vsftpd-2.2.2/sysutil.h.uint-uidgid vsftpd-2.2.2/sysutil.h
+--- vsftpd-2.2.2/sysutil.h.uint-uidgid	2012-01-27 11:52:57.136334199 +0100
++++ vsftpd-2.2.2/sysutil.h	2012-01-27 11:52:57.171334140 +0100
+@@ -291,7 +291,7 @@ int vsf_sysutil_inet_aton(
+ struct vsf_sysutil_user;
+ struct vsf_sysutil_group;
+ 
+-struct vsf_sysutil_user* vsf_sysutil_getpwuid(const int uid);
++struct vsf_sysutil_user* vsf_sysutil_getpwuid(const unsigned int uid);
+ struct vsf_sysutil_user* vsf_sysutil_getpwnam(const char* p_user);
+ const char* vsf_sysutil_user_getname(const struct vsf_sysutil_user* p_user);
+ const char* vsf_sysutil_user_get_homedir(
+@@ -299,7 +299,7 @@ const char* vsf_sysutil_user_get_homedir
+ int vsf_sysutil_user_getuid(const struct vsf_sysutil_user* p_user);
+ int vsf_sysutil_user_getgid(const struct vsf_sysutil_user* p_user);
+ 
+-struct vsf_sysutil_group* vsf_sysutil_getgrgid(const int gid);
++struct vsf_sysutil_group* vsf_sysutil_getgrgid(const unsigned int gid);
+ const char* vsf_sysutil_group_getname(const struct vsf_sysutil_group* p_group);
+ 
+ /* More random things */
