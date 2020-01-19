@@ -1,0 +1,12 @@
+diff -up vsftpd-3.0.2/tunables.c.seccomp_default vsftpd-3.0.2/tunables.c
+--- vsftpd-3.0.2/tunables.c.seccomp_default	2012-11-21 10:07:23.336130468 +0100
++++ vsftpd-3.0.2/tunables.c	2012-11-21 10:07:31.329130552 +0100
+@@ -228,7 +228,7 @@ tunables_load_defaults()
+   tunable_isolate_network = 1;
+   tunable_ftp_enable = 1;
+   tunable_http_enable = 0;
+-  tunable_seccomp_sandbox = 1;
++  tunable_seccomp_sandbox = 0;
+   tunable_allow_writeable_chroot = 0;
+ 
+   tunable_accept_timeout = 60;
