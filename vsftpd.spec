@@ -3,7 +3,7 @@
 
 Name: vsftpd
 Version: 3.0.2
-Release: 21%{?dist}
+Release: 22%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -75,6 +75,7 @@ Patch37: vsftpd-2.2.2-blank-chars-overflow.patch
 Patch38: vsftpd-2.2.2-syslog.patch
 Patch39: vsftpd-3.0.2-docupd.patch
 Patch40: vsftpd-2.2.2-tlsv1_2.patch
+Patch41: vsftpd-3.0.2-defaulttls.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -130,6 +131,7 @@ cp %{SOURCE1} .
 %patch38 -p1 -b .syslog
 %patch39 -p1 -b .docup
 %patch40 -p1 -b .tls_version
+%patch41 -p1 -b .defaulttls
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -200,6 +202,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rc.d/init.d/vsftpd
 
 %changelog
+* Thu Mar 23 2017 Zdenek Dohnal <zdohnal@redhat.com> - 3.0.2-22
+- Resolves: #1432054 - secure ftp stopped working with default TLS settings in the new vsftpd package
+
 * Thu Jun 02 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-21
 - Resolves: #1318947 vsftpd should permit specified TLS versions only
 

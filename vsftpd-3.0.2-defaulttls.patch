@@ -1,0 +1,12 @@
+diff -up vsftpd-3.0.2/features.c.defaulttls vsftpd-3.0.2/features.c
+--- vsftpd-3.0.2/features.c.defaulttls	2017-03-23 13:52:03.775952599 +0100
++++ vsftpd-3.0.2/features.c	2017-03-23 13:55:37.919726920 +0100
+@@ -22,7 +22,7 @@ handle_feat(struct vsf_session* p_sess)
+     {
+       vsf_cmdio_write_raw(p_sess, " AUTH SSL\r\n");
+     }
+-    if (tunable_tlsv1)
++    if (tunable_tlsv1 || tunable_tlsv1_1 || tunable_tlsv1_2)
+     {
+       vsf_cmdio_write_raw(p_sess, " AUTH TLS\r\n");
+     }
