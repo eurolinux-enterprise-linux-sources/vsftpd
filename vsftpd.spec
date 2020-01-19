@@ -3,7 +3,7 @@
 
 Name: vsftpd
 Version: 3.0.2
-Release: 22%{?dist}
+Release: 25%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -76,6 +76,15 @@ Patch38: vsftpd-2.2.2-syslog.patch
 Patch39: vsftpd-3.0.2-docupd.patch
 Patch40: vsftpd-2.2.2-tlsv1_2.patch
 Patch41: vsftpd-3.0.2-defaulttls.patch
+Patch42: 0001-Redefine-VSFTP_COMMAND_FD-to-1.patch
+Patch43: 0001-Document-the-relationship-of-text_userdb_names-and-c.patch
+Patch44: 0001-Document-allow_writeable_chroot-in-the-man-page.patch
+Patch45: 0001-Improve-documentation-of-ascii_-options.patch
+Patch46: 0001-Add-new-filename-generation-algorithm-for-STOU-comma.patch
+Patch47: 0001-Fix-rDNS-with-IPv6.patch
+Patch48: 0001-Log-die-calls-to-syslog.patch
+Patch49: 0002-Improve-error-message-when-max-number-of-bind-attemp.patch
+Patch50: 0003-Make-the-max-number-of-bind-retries-tunable.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -132,6 +141,15 @@ cp %{SOURCE1} .
 %patch39 -p1 -b .docup
 %patch40 -p1 -b .tls_version
 %patch41 -p1 -b .defaulttls
+%patch42 -p1 -b .command-fd
+%patch43 -p1 -b .text-userdb-names
+%patch44 -p1 -b .allow-writeable-chroot
+%patch45 -p1 -b .ascii
+%patch46 -p1 -b .better-stou
+%patch47 -p1 -b .ipv6-rdns
+%patch48 -p1 -b .errors-to-syslog
+%patch49 -p1 -b .improve-error-message
+%patch50 -p1 -b .bind-retries-configurable
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -202,6 +220,28 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rc.d/init.d/vsftpd
 
 %changelog
+* Thu Jun 21 2018 Ondřej Lysoněk <olysonek@redhat.com> - 3.0.2-25
+- Add config option log_die allowing to pass error messages to syslog
+- Add config option bind_retries allowing to change the max number
+- of attempts to find a listening port for the PASV/EPSV command
+- Resolves: rhbz#1318198
+
+* Wed May 16 2018 Ondřej Lysoněk <olysonek@redhat.com> - 3.0.2-24
+- Fix reverse hostname lookup with IPv6
+- Resolves: rhbz#1576705
+
+* Thu Apr 05 2018 Ondřej Lysoněk <olysonek@redhat.com> - 3.0.2-23
+- Redefine VSFTP_COMMAND_FD to 1
+- Resolves: rhbz#1443055
+- Document the relationship of text_userdb_names and chroot_local_user
+- Resolves: rhbz#1508021
+- Document allow_writeable_chroot in the man page
+- Resolves: rhbz#1508022
+- Improve documentation of ascii_* options
+- Resolves: rhbz#1517227
+- Add new filename generation algorithm for STOU command
+- Resolves: rhbz#1479237
+
 * Thu Mar 23 2017 Zdenek Dohnal <zdohnal@redhat.com> - 3.0.2-22
 - Resolves: #1432054 - secure ftp stopped working with default TLS settings in the new vsftpd package
 
