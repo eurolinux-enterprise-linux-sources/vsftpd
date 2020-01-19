@@ -3,7 +3,7 @@
 
 Name: vsftpd
 Version: 3.0.2
-Release: 10%{?dist}
+Release: 11%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -65,6 +65,7 @@ Patch27: vsftpd-3.0.2-mrate.patch
 Patch28: vsftpd-3.0.2-wnohang.patch
 Patch29: vsftpd-3.0.2-dh.patch
 Patch30: vsftpd-3.0.2-ecdh.patch
+Patch31: vsftpd-2.0.5-fix_qm.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -110,6 +111,7 @@ cp %{SOURCE1} .
 %patch28 -p1 -b .wnohang
 %patch29 -p1 -b .dh
 %patch30 -p1 -b .ecdh
+%patch31 -p1 -b .fix_qm
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -180,6 +182,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rc.d/init.d/vsftpd
 
 %changelog
+* Tue Feb 23 2016 Pavel Šimerda <psimerda@redhat.com> - 3.0.2-11
+- Resolves: #1166741 - Wildcard ? does not work correctly in vsftpd-3.0.2-9.el7
+
 * Mon Aug 03 2015 Martin Osvald <mosvald@rehat.com> - 3.0.2-10
 - Resolves: #1058704 - vsftpd does not support DHE cipher suites
 - Resolves: #1058712 - vsftpd does not support ECDHE cipher suites

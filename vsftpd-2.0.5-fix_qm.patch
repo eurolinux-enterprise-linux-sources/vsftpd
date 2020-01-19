@@ -1,0 +1,13 @@
+diff -up vsftpd-2.0.5/ls.c.fix_qm vsftpd-2.0.5/ls.c
+--- vsftpd-2.0.5/ls.c.fix_qm	2012-03-02 12:59:01.303249397 +0100
++++ vsftpd-2.0.5/ls.c	2012-03-02 13:00:03.792145117 +0100
+@@ -454,7 +454,8 @@ vsf_filename_passes_filter(const struct
+         must_match_at_current_pos = 0;
+       }
+     } while (locate_result.found &&
+-             str_getlen(&name_remain_str) > 0 && last_token != '*');
++             str_getlen(&name_remain_str) > 0 &&
++             last_token != '*' && last_token != '?');
+   }
+   /* Any incoming string left means no match unless we ended on the correct
+    * type of wildcard.
