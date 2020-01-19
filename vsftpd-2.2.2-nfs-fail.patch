@@ -1,0 +1,129 @@
+diff --git a/ftpcodes.h b/ftpcodes.h
+index 995788a..22c3c9b 100644
+--- a/ftpcodes.h
++++ b/ftpcodes.h
+@@ -73,6 +73,7 @@
+ #define FTP_NOHANDLEPROT      536
+ #define FTP_FILEFAIL          550
+ #define FTP_NOPERM            550
++#define FTP_DISKQUOTA         552
+ #define FTP_UPLOADFAIL        553
+ 
+ #endif /* VSF_FTPCODES_H */
+diff --git a/postlogin.c b/postlogin.c
+index e1f080f..ffe0f38 100644
+--- a/postlogin.c
++++ b/postlogin.c
+@@ -28,6 +28,8 @@
+ #include "vsftpver.h"
+ #include "opts.h"
+ 
++#include <errno.h>
++
+ /* Private local functions */
+ static void handle_pwd(struct vsf_session* p_sess);
+ static void handle_cwd(struct vsf_session* p_sess);
+@@ -996,8 +998,10 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
+   struct vsf_transfer_ret trans_ret;
+   int new_file_fd;
+   int remote_fd;
++  int close_errno;
+   int success = 0;
+   int created = 0;
++  int closed = 0;
+   int do_truncate = 0;
+   filesize_t offset = p_sess->restart_pos;
+   p_sess->restart_pos = 0;
+@@ -1110,6 +1114,18 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
+     trans_ret = vsf_ftpdataio_transfer_file(p_sess, remote_fd,
+                                             new_file_fd, 1, 0);
+   }
++
++  /* Need to check close operation here because some errors
++   * like EIO, EDQUOT, ENOSPC can be detected only on close
++   * when using NFS
++   */
++  close_errno = vsf_sysutil_close_errno(new_file_fd);
++  closed = 1;
++  if (close_errno != 0)
++  {
++    trans_ret.retval = -1;
++  }
++
+   if (vsf_ftpdataio_dispose_transfer_fd(p_sess) != 1 && trans_ret.retval == 0)
+   {
+     trans_ret.retval = -2;
+@@ -1122,7 +1138,16 @@ handle_upload_common(struct vsf_session* p_sess, int is_append, int is_unique)
+   }
+   if (trans_ret.retval == -1)
+   {
+-    vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure writing to local file.");
++    /* Disk quota exceeded */
++    if (close_errno == EDQUOT)
++    {
++      vsf_cmdio_write(p_sess, FTP_DISKQUOTA, "Disk quota exceeded.");
++    }
++    /* any other local error */
++    else
++    {
++      vsf_cmdio_write(p_sess, FTP_BADSENDFILE, "Failure writing to local file.");
++    }
+   }
+   else if (trans_ret.retval == -2)
+   {
+@@ -1144,7 +1169,10 @@ port_pasv_cleanup_out:
+   {
+     str_unlink(p_filename);
+   }
+-  vsf_sysutil_close(new_file_fd);
++  if (!closed)
++  {
++    vsf_sysutil_close(new_file_fd);
++  }
+ }
+ 
+ static void
+diff --git a/sysutil.c b/sysutil.c
+index 01a726d..2c3659b 100644
+--- a/sysutil.c
++++ b/sysutil.c
+@@ -1271,6 +1271,27 @@ vsf_sysutil_close(int fd)
+ }
+ 
+ int
++vsf_sysutil_close_errno(int fd)
++{
++  while (1)
++  {
++    int retval = close(fd);
++    if (retval != 0)
++    {
++      if (errno == EINTR)
++      {
++        vsf_sysutil_check_pending_actions(kVSFSysUtilUnknown, 0, 0);
++        continue;
++      }
++      else {
++        return errno;
++      }
++    }
++    return 0;
++  }
++}
++
++int
+ vsf_sysutil_close_failok(int fd)
+ {
+   return close(fd);
+diff --git a/sysutil.h b/sysutil.h
+index 92fb7a9..c9ca9e4 100644
+--- a/sysutil.h
++++ b/sysutil.h
+@@ -92,6 +92,7 @@ int vsf_sysutil_create_append_file(const char* p_filename);
+ int vsf_sysutil_create_or_open_file(const char* p_filename, unsigned int mode);
+ void vsf_sysutil_dupfd2(int old_fd, int new_fd);
+ void vsf_sysutil_close(int fd);
++int vsf_sysutil_close_errno(int fd);
+ int vsf_sysutil_close_failok(int fd);
+ int vsf_sysutil_unlink(const char* p_dead);
+ int vsf_sysutil_write_access(const char* p_filename);

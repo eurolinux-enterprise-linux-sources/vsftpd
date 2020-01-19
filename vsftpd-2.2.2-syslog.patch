@@ -1,0 +1,13 @@
+diff --git a/logging.c b/logging.c
+index 99671b4..c4461f7 100644
+--- a/logging.c
++++ b/logging.c
+@@ -32,7 +32,7 @@ vsf_log_init(struct vsf_session* p_sess)
+ {
+   if (tunable_syslog_enable || tunable_tcp_wrappers)
+   {
+-    vsf_sysutil_openlog(1);
++    vsf_sysutil_openlog(0);
+   }
+   if (!tunable_xferlog_enable && !tunable_dual_log_enable)
+   {

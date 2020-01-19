@@ -3,7 +3,7 @@
 
 Name: vsftpd
 Version: 3.0.2
-Release: 11%{?dist}
+Release: 21%{?dist}
 Summary: Very Secure Ftp Daemon
 
 Group: System Environment/Daemons
@@ -66,6 +66,15 @@ Patch28: vsftpd-3.0.2-wnohang.patch
 Patch29: vsftpd-3.0.2-dh.patch
 Patch30: vsftpd-3.0.2-ecdh.patch
 Patch31: vsftpd-2.0.5-fix_qm.patch
+Patch32: vsftpd-3.0.2-reverse-lookup.patch
+Patch33: vsftpd-3.0.2-del-upl.patch
+Patch34: vsftpd-2.2.2-nfs-fail.patch
+Patch35: vsftpd-2.2.2-man-pages.patch
+Patch36: vsftpd-3.0.2-uint-uidgid.patch
+Patch37: vsftpd-2.2.2-blank-chars-overflow.patch
+Patch38: vsftpd-2.2.2-syslog.patch
+Patch39: vsftpd-3.0.2-docupd.patch
+Patch40: vsftpd-2.2.2-tlsv1_2.patch
 
 %description
 vsftpd is a Very Secure FTP daemon. It was written completely from
@@ -112,6 +121,15 @@ cp %{SOURCE1} .
 %patch29 -p1 -b .dh
 %patch30 -p1 -b .ecdh
 %patch31 -p1 -b .fix_qm
+%patch32 -p1 -b .reverse-lookup
+%patch33 -p1 -b .del-upl
+%patch34 -p1 -b .nfs-fail
+%patch35 -p1 -b .man_pages
+%patch36 -p1 -b .uint-uidgid
+%patch37 -p1 -b .blank-char-overflow
+%patch38 -p1 -b .syslog
+%patch39 -p1 -b .docup
+%patch40 -p1 -b .tls_version
 
 %build
 %ifarch s390x sparcv9 sparc64
@@ -182,6 +200,40 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/rc.d/init.d/vsftpd
 
 %changelog
+* Thu Jun 02 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-21
+- Resolves: #1318947 vsftpd should permit specified TLS versions only
+
+* Thu Apr 07 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-20
+- Resolves: #1147551 - Missing isolate_* options, incorrect default values of
+  max_clients, max_per_ip in man vsftpd.conf
+
+* Tue Apr 05 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-19
+- Resolves: #1311562 - Message is not logged to syslog when syslog_enable=yes in
+  vsftpd.conf
+
+* Tue Apr 05 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-18
+- Resolves: #1311600 - vsftpd segfaults in vsf_sysutil_strndup
+
+* Fri Apr 01 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-17
+- Resolves: #1116385 - deny_file, hide_file
+
+* Tue Mar 29 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-16
+- Resolves: #1087868 - uid and gid is not correctly shown
+
+* Tue Mar 29 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-15
+- Resolves: #1147550 ssl_request_cert paragraph in the vsftpd.conf man page gets
+  rendered incorrectly
+
+* Tue Mar 29 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-14
+- Resolves: #1317891 Handle errors when calling close()
+
+* Thu Mar 24 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-13
+- Resolves: #1148872 - The vsftpd doesn't remove failed upload when the
+  delete_failed_uploads is enabled and the network cable is unplagged
+
+* Tue Mar 22 2016 Martin Sehnoutka <msehnout@redhat.com> - 3.0.2-12
+- Resolves: #1087834 - missing reverse_lookup_enable option
+
 * Tue Feb 23 2016 Pavel Šimerda <psimerda@redhat.com> - 3.0.2-11
 - Resolves: #1166741 - Wildcard ? does not work correctly in vsftpd-3.0.2-9.el7
 

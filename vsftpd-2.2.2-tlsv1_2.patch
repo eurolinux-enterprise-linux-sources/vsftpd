@@ -1,0 +1,116 @@
+diff --git a/parseconf.c b/parseconf.c
+index a2c715b..33a1349 100644
+--- a/parseconf.c
++++ b/parseconf.c
+@@ -85,6 +85,8 @@ parseconf_bool_array[] =
+   { "ssl_sslv2", &tunable_sslv2 },
+   { "ssl_sslv3", &tunable_sslv3 },
+   { "ssl_tlsv1", &tunable_tlsv1 },
++  { "ssl_tlsv1_1", &tunable_tlsv1_1 },
++  { "ssl_tlsv1_2", &tunable_tlsv1_2 },
+   { "tilde_user_enable", &tunable_tilde_user_enable },
+   { "force_anon_logins_ssl", &tunable_force_anon_logins_ssl },
+   { "force_anon_data_ssl", &tunable_force_anon_data_ssl },
+diff --git a/ssl.c b/ssl.c
+index da23f87..94c2b6b 100644
+--- a/ssl.c
++++ b/ssl.c
+@@ -135,6 +135,14 @@ ssl_init(struct vsf_session* p_sess)
+     {
+       options |= SSL_OP_NO_TLSv1;
+     }
++    if (!tunable_tlsv1_1)
++    {
++      options |= SSL_OP_NO_TLSv1_1;
++    }
++    if (!tunable_tlsv1_2)
++    {
++      options |= SSL_OP_NO_TLSv1_2;
++    }
+     SSL_CTX_set_options(p_ctx, options);
+     if (tunable_rsa_cert_file)
+     {
+diff --git a/tunables.c b/tunables.c
+index 742284e..08d5490 100644
+--- a/tunables.c
++++ b/tunables.c
+@@ -66,6 +66,8 @@ int tunable_force_local_data_ssl;
+ int tunable_sslv2;
+ int tunable_sslv3;
+ int tunable_tlsv1;
++int tunable_tlsv1_1;
++int tunable_tlsv1_2;
+ int tunable_tilde_user_enable;
+ int tunable_force_anon_logins_ssl;
+ int tunable_force_anon_data_ssl;
+@@ -209,7 +211,9 @@ tunables_load_defaults()
+   tunable_force_local_data_ssl = 1;
+   tunable_sslv2 = 0;
+   tunable_sslv3 = 0;
+-  tunable_tlsv1 = 1;
++  tunable_tlsv1 = 0;
++  tunable_tlsv1_1 = 0;
++  tunable_tlsv1_2 = 1;
+   tunable_tilde_user_enable = 0;
+   tunable_force_anon_logins_ssl = 0;
+   tunable_force_anon_data_ssl = 0;
+diff --git a/tunables.h b/tunables.h
+index 3e2d40c..a466427 100644
+--- a/tunables.h
++++ b/tunables.h
+@@ -67,6 +67,8 @@ extern int tunable_force_local_data_ssl;      /* Require local data uses SSL */
+ extern int tunable_sslv2;                     /* Allow SSLv2 */
+ extern int tunable_sslv3;                     /* Allow SSLv3 */
+ extern int tunable_tlsv1;                     /* Allow TLSv1 */
++extern int tunable_tlsv1_1;                   /* Allow TLSv1.1 */
++extern int tunable_tlsv1_2;                   /* Allow TLSv1.2 */
+ extern int tunable_tilde_user_enable;         /* Support e.g. ~chris */
+ extern int tunable_force_anon_logins_ssl;     /* Require anon logins use SSL */
+ extern int tunable_force_anon_data_ssl;       /* Require anon data uses SSL */
+diff --git a/vsftpd.conf.5 b/vsftpd.conf.5
+index cf1ae34..6f36b1b 100644
+--- a/vsftpd.conf.5
++++ b/vsftpd.conf.5
+@@ -506,7 +506,7 @@ Default: YES
+ Only applies if
+ .BR ssl_enable
+ is activated. If enabled, this option will permit SSL v2 protocol connections.
+-TLS v1 connections are preferred.
++TLS v1.2 connections are preferred.
+ 
+ Default: NO
+ .TP
+@@ -514,7 +514,7 @@ Default: NO
+ Only applies if
+ .BR ssl_enable
+ is activated. If enabled, this option will permit SSL v3 protocol connections.
+-TLS v1 connections are preferred.
++TLS v1.2 connections are preferred.
+ 
+ Default: NO
+ .TP
+@@ -522,7 +522,23 @@ Default: NO
+ Only applies if
+ .BR ssl_enable
+ is activated. If enabled, this option will permit TLS v1 protocol connections.
+-TLS v1 connections are preferred.
++TLS v1.2 connections are preferred.
++
++Default: NO
++.TP
++.B ssl_tlsv1_1
++Only applies if
++.BR ssl_enable
++is activated. If enabled, this option will permit TLS v1.1 protocol connections.
++TLS v1.2 connections are preferred.
++
++Default: NO
++.TP
++.B ssl_tlsv1_2
++Only applies if
++.BR ssl_enable
++is activated. If enabled, this option will permit TLS v1.2 protocol connections.
++TLS v1.2 connections are preferred.
+ 
+ Default: YES
+ .TP
